@@ -1,11 +1,19 @@
 var apiRoot = "http://demo-ap08-prod.apigee.net/v1";
 
-function apiGet(addr) {
-  return superagent.get(apiRoot + addr).set('Authorization', 'Bearer ' + window.apiToken);
+function apiGet(addr, params) {
+  params = typeof params === "undefind" ? {} : params;
+  return superagent
+    .get(apiRoot + addr)
+    .set('Authorization', 'Bearer ' + window.apiToken)
+    .send(params);
 }
 
-function apiPost(addr) {
-  return superagent.post(apiRoot + addr).set('Authorization', 'Bearer ' + window.apiToken);
+function apiPost(addr, params) {
+  params = typeof params === "undefind" ? {} : params;
+  return superagent
+    .post(apiRoot + addr)
+    .set('Authorization', 'Bearer ' + window.apiToken)
+    .send(params);
 }
 
 api = {
@@ -91,6 +99,30 @@ api.accounts.__proto__.transactions = function(id) {
 api.accounts.__proto__.transfers = function(id) {
   return new Promise((resolve, reject) => {
     apiGet("/accounts/" + id + "/transfers").end((err, res) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(JSON.parse(res.text));
+      }
+    });
+  });
+}
+
+api.accounts.__proto__.sendTransfers = function(id, params) {
+  return new Promise((resolve, reject) => {
+    apiPost("/accounts/" + id + "/transfers", params).end((err, res) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(JSON.parse(res.text));
+      }
+    });
+  });
+}
+
+api.accounts.__proto__.acceptTransfers = function(id, transferId, params) {
+  return new Promise((resolve, reject) => {
+    apiPost("/accounts/" + id + "/transfers/" + transferId, params).end((err, res) => {
       if (err) {
         reject(err);
       } else {
