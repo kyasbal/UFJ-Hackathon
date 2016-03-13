@@ -1,19 +1,15 @@
 var apiRoot = "http://demo-ap08-prod.apigee.net/v1";
 
-function apiGet(addr, params) {
-  params = typeof params === "undefind" ? {} : params;
+function apiGet(addr) {
   return superagent
     .get(apiRoot + addr)
     .set('Authorization', 'Bearer ' + window.apiToken)
-    .send(params);
 }
 
-function apiPost(addr, params) {
-  params = typeof params === "undefind" ? {} : params;
+function apiPost(addr) {
   return superagent
     .post(apiRoot + addr)
     .set('Authorization', 'Bearer ' + window.apiToken)
-    .send(params);
 }
 
 api = {
@@ -156,11 +152,81 @@ api.users.__proto__.transfer_patterns = {
   }
 };
 
-api.users.me().then(m => {
+APIWrapper = function () {};
+
+APIWrapper.prototype.load = function (cb) {
+  this.cb = cb;
+};
+
+APIWrapper.prototype.setToken = function (token) {
+  this.token = token;
+  this.cb();
+};
+
+/**
+ * 振り込みを行います
+ * @param  {[type]}   account_id        振込元の自分のアカウントid
+ * @param  {[type]}   target_account_id 振込先のアカウントid
+ * @param  {[type]}   amount            振込金額
+ * @param  {Function} cb                取得終わったらここが実行されるよ
+ * @return {[type]}                     もろもろオブジェクト
+ */
+APIWrapper.prototype.transfer = function (account_id, target_account_id, amount, cb) {
+  cb = cb || function () {};
+  console.log('req');
+  superagent
+    .post('/transfer')
+    .send({
+      account_id: account_id,
+      target_account_id: target_account_id,
+      amount: amount,
+      token: this.token,
+    })
+    .end(function (err, res) {
+      if (err) {
+        console.error(err);
+        cb(err, res.body);
+      } else {
+        cb(null, res.body);
+      }
+    });
+};
+
+/**
+ * アカウントidを指定して残額を取得する
+ * @param  {number|string} account_id アカウントid
+ * @param  {Function} cb              取得終わったらここが実行されるよ
+ * @return {number}                   残額(数値)
+ */
+APIWrapper.prototype.rest = function (account_id, cb) {
+  cb =  cb || function () {};
+  api.users.me().then(function(data) {
+    data.my_accounts.forEach(function(v) {
+      if (v === account_id.toString()) {
+        cb(null, v.balance);
+      }
+    });
+  }).catch(function(err) {
+    console.error(err);
+    cb(err, null);
+  });
+};
+
+api.users.me().then(function (m) {
   console.log(m);
-  return api.users.transfer_patterns.get(m.user_id);
-}).then(d => {
-  return api.users.transfer_patterns.get(d.entities[0].user_id,d.entities[0].transfer_pattern_id);
-}).then(t=>{
-  console.log(t);
-})
+  UFJAPI.setToken(window.apiToken);
+});
+
+// expose
+window.UFJAPI = new APIWrapper();
+
+// ui
+UFJAPI.load(function() {
+  console.log('load');
+  // UFJAPI.transfer(123, 123, 1000, function (err, res) {
+  //   console.log(err, res);
+  // });
+  UFJAPI.rest(1111111, function (err, res) {
+    console.log(err, res);
+  });
+});
